@@ -5,7 +5,7 @@ In this repository I'll be trying to maintain a relatively presentable copy of m
 scrutinizing today then go ahead and ignore the earlier projects as I took massive aesthetic liberty to churn out hideous but functional
 projects quickly so I could get to the juicy learnin'.
 
-P0 - Introductory project, very straightforward basic stats on chopstick size preferences among students. <\n>
+P0 - Introductory project, very straightforward basic stats on chopstick size preferences among students.     
 Jupyter Notebook, Python
 
 P1 - Looking at the Stroop effect in a small sample and doing some more basic stats. </n>
