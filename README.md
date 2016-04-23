@@ -22,3 +22,7 @@ relationships like Class and Sex, fare age etc. as well as Survival.
 ## P3 - Open Street Map Data Wrangle with MongoDB  
 Exported an XML document from Open Street Maps detailing the Hampton Roads area in Virginia. XML file size was over 1GB. Cleaned data, saved as JSON, uploaded to MongoDB and looked at a couple different statistics on the area. This one was a fav!    
 <b>Jupyter Notebook, Python (numpy, pandas, ElementTree), XML, JSON, MongoDB </b>
+
+## P4 - Data Mining the Tanzanian Water Table With R    
+Exploratory Data Analysis for the drivendata.org machine learning competition to predict failure of water wells in Tanzania to support the NPO Taarifa.    
+<b> R, R Markdown, Statistical Analysis, ggplot2 </b>
