@@ -1,0 +1,509 @@
+---
+title: "Data Mining the Tanzanian Water Table"
+author: Paulo Black
+output: html_document
+---
+#Abstract
+
+I've pulled the provided data for the no-prize competiton, "Pump it Up: Data Mining the Water Table" from [Driven Data](https://www.drivendata.org/competitions/7/), supported by Taarifa and the Tanzanian Ministry of Water and performed exploratory data analysis. I will be storing this analysis to soon use in a machine learning exercise and participate in the competition, the goal of which is to predict when a well will fail given all information but its operational status.
+
+I'm thrilled to see data science used for humanitarian ends and I hope this is the first of many opportunities I have to engage with this kind of work.
+
+# <a name = 'contents'></a>Table of Contents
+1. [Introduction](#introduction)  
+    + [Dataset](#dataset)  
+2. [Analysis](#analysis)  
+    + [Geography](#geo)  
+    + [Height](#height)
+    + [Region and Basin](#regbase)    
+    + [Population](#pop)  
+    + [Water Analysis](#water)   
+    + [Construction Year](#constryear)  
+    + [Date Reported](#date)
+3. [Miscellaneous](#misc)  
+    + [Public Meeting](#pubmeet)
+    + [Scheme Management](#scheme.mgmt)
+    + [Payment](#payment)
+    + [Management Group](#mgmt.group)
+    + [Payment Type](#payment.type)
+4. [Final Plots](#finalplots)
+5. [Reflection](#reflection)
+6. [Sources and Closing](#sources)
+
+
+# <a name = 'introduction'></a> Introduction 
+[Back to contents](#contents)
+
+Taarifa describes itself as "an open source platform for the crowd sourced reporting and triaging of infrastructure related ussues". To this end, they've compiled and provided a dataset describing the condition of water wells in Tanzania in collaboration with the Tanzanian Ministry of Water. Users of the well are provided with a means of reporting the status of a well (functional, functional needs repair, or non functional) which is associated with an ID containing some 40 descriptors including the ID itself.
+
+In typical data competition style, the goal of the competition is to take this given dataset (the train set) and create a machine learning algorithm that will perform as well as possible against the test set. In this document, I do not employ any machine learning, I am focused exclusively on a thorough exploratory analysis both to hone my R and data visualization abilities as well as preparing as thorough a possible report of the data to inform any machine learning I may later use.
+
+With that I'll initialize some libraries I use and load in the data. Note that the status of the well comes in a separate CSV file, so I've loaded that one in and added its values to a new column in the main data file.
+```{r setup,global_options, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, messages = FALSE)
+```
+
+```{r}
+suppressMessages(library(ggplot2))
+suppressMessages(library(plyr))
+suppressMessages(library(ggmap))
+suppressMessages(library(knitr))
+suppressMessages(library(GGally))
+suppressMessages(library(vcd))
+suppressMessages(library(psych))
+suppressMessages(library(gridExtra))
+suppressMessages(library(reshape2))
+setwd('~/Desktop/DanD/P4_R/Wells')
+wells = read.csv(file = 'wells.csv',header = TRUE)
+outcomes = read.csv(file='outcomes.csv',header = TRUE)
+wells$outcomes <- outcomes$status_group
+```
+
+
+## <a name = 'dataset'></a> Dataset  
+[Back to contents](#contents)
+
+Before beginning any analysis I've renamed several of the variables to follow standard R format and removed several factors that were either redundant or irrelevant. I've also created a handful of subsets that will come in handy throughout.
+```{r echo = FALSE}
+#Changing values in outcomes column: 'functional' goes to 'func', 'functional needs repair' goes to 'repair, 'non functional' goes to 'nonfunc'
+levels(wells$outcomes)[1] <- 'func'
+levels(wells$outcomes)[2] <- 'repair'
+levels(wells$outcomes)[3] <- 'nonfunc'
+#And renaming some of our variables.
+wells <- rename(wells,c('amount_tsh' = 'amount.tsh',
+                        'date_recorded' = 'date.recorded',
+                        'gps_height' = 'height',
+                        'wpt_name' = 'wpt.name',
+                        'num_private' = 'num.private',
+                        'region_code' = 'region.code',
+                        'district_code' = 'district.code',
+                        'public_meeting' = 'pubmeet',
+                        'scheme_management' = 'scheme.mgmt',
+                        'scheme_name' = 'scheme',
+                        'construction_year' = 'constr.year',
+                        'extraction_type' = 'extr.type',
+                        'extraction_type_group' = 'extr.type.group',
+                        'extraction_type_class' = 'extr.type.class',
+                        'management' = 'mgmt',
+                        'management_group' = 'mgmt.group',
+                        'payment_type' = 'payment.type',
+                        'recorded_by' = 'recorded.by',
+                        'water_quality' = 'water.qual',
+                        'quality_group' = 'qual.group',
+                        'quantity' = 'quant',
+                        'quantity_group' = 'quant.group',
+                        'source_type' = 'source.type',
+                        'source_class' = 'source.class',
+                        'waterpoint_type' = 'wpt.type',
+                        'waterpoint_type_group' = 'wpt.type.group'))
+
+```
+
+```{r}
+#I'm going to drop a few variables that either have too many levels or are redundant
+wells <- subset(wells, select = -c(ward, region.code, district.code,subvillage,recorded.by, scheme, wpt.name, wpt.type.group,quant.group, payment,qual.group, extr.type.group, lga, source.type, funder, installer, extr.type, source.class, num.private))
+                      
+
+
+#Making subsets grouping each outcome group with only one other, then making sure the outcomes column has the correct number of levels.
+aggFR <- subset(wells, outcomes == 'func' | outcomes == 'repair')
+aggNFR <- subset(wells, outcomes == 'nonfunc' | outcomes == 'repair')
+aggFNF <- subset(wells, outcomes == 'func' | outcomes == 'nonfunc')
+
+aggFR$outcomes <- factor(aggFR$outcomes)
+aggNFR$outcomes <- factor(aggNFR$outcomes)
+aggFNF$outcomes <- factor(aggFNF$outcomes)
+
+#Change date column to date format
+wells$date.recorded <- as.Date(wells$date.recorded)
+
+#Loading dplyr over plyr
+suppressMessages(library(dplyr))
+```
+
+Let's make sure we have the same number of entries in the outcomes and data files, and that the IDs of each match up
+```{r}
+all(wells$id == outcomes$id)
+```
+Fantastic, this evaluates to true. We know at least this part of our data is clean.
+
+So let's poke around our data. We know we have 59400 different entries, and 22 variables including the status.
+```{r}
+str(wells)
+```
+
+Let's see what the well outcome distribution looks like so we know what we're normalizing against.
+```{r}
+ggplot(aes(x = outcomes), data = wells) +
+  geom_bar(aes(fill = outcomes)) +
+  scale_fill_manual(values = c('green','yellow','red'))
+```
+
+Now that we have a good picture of what is included and relevant in our data, let's do some analysis.
+
+
+# <a name = 'analysis'></a> Analysis  
+
+## <a name = 'geo'></a> Geography  
+[Back to contents](#contents)
+
+A good first step would be to use the ggmaps package to look at Tanzania overlaid with a density spread of each level of the outcomes factor.
+```{r include=FALSE}
+tanzMap <- get_map(location = 'tanzania', source = 'google', zoom = 6,maptype = c('terrain'))
+
+rasterbase <- ggmap(tanzMap, extent = 'panel') 
+
+```
+
+```{r}
+rasterbase +
+  stat_density2d(aes(x = longitude, y = latitude, fill = ..level..), 
+                  data = subset(wells, longitude > 10 & latitude < -1),
+                 geom = 'polygon') +
+  guides(fill = guide_legend(title = 'Density')) +
+  facet_wrap(~outcomes)
+```
+
+Interestingly, all of the functioning wells are around the border of the country, excluding the western border. Everything in the interior and to the west is in some state of disrepair.
+
+## <a name = 'height'></a> Height  
+[Back to contents](#contents)
+
+What about height? The unit of height is not given in the data set but I assume it is meters.
+
+```{r}
+ggplot(aes(x = height),data = subset(wells, height > 0)) +
+  geom_freqpoly(aes(x = height, y = ..density.., color = outcomes), binwidth = 30) +
+  scale_color_manual(values = c('green','yellow','red')) +
+  xlab('Height (m)') + 
+  ylab('Normalized Count')
+```
+
+It looks like height might also play into the equation. Above 1500 meters or so it appears that wells are more functional than not. At ~800 meters we see that non functioning wells dominate the peak and at ~1200 we see that wells in need of repair dominate the peak.
+
+## <a name = 'regbase'></a>Region & Basin  
+[Back to contents](#contents)
+
+Let's take a look at the distribution of well status by region and basin. This is the first time we encounter discrete variables, which happen to comprise the majority of our data set. This prevents us from using ggpairs to quickly find correlation between all of our factors and the outcomes, but it does give an opportunity to write two functions to effectively do the same thing. 
+
+The first function works to produce a stacked bar plot with a column for each level of the input factor. I call it catPlots for Categorical Plots
+
+```{r}
+catPlots <- function(inputVar, label){
+  d <- ggplot(aes(x = inputVar, fill = outcomes), data = subset(wells, !is.na(inputVar))) +
+  geom_bar(position = 'fill') + 
+  scale_fill_manual(values = c('green','yellow','red')) +
+  xlab(label) +
+  ylab('Normalized Count')
+  return(d)
+}
+```
+
+The second will output the Cramer's V of the input variable considered in all three binary combinations of the outcome levels. I've chosen to perform the test on all three permutations rather than just one test across the main dataset because eventually I want to apply the correlation to distinguish between all three groups and will most likely break the classifier into first determining if the well is functioning or not and only subsequent to a negative result will I distinguish between needs repair and non functional. I've also chosen to only output the actual value for Cramer's V as in each case the Chi-Sq value is astronomically large and we just want to know how strong the significance is.
+
+The rule of thumb I have learned for Cramer's V is to consider a value of .1-.3 moderately significant and a value above .3 strongly significant, so these are the metrics by which I will compare the results we get below.
+
+```{r}
+quickCramer <- function(inputVar){
+  
+  
+  #Create subsets without any null or missing values for the input column
+  FRsub <- subset(aggFR, !is.na(inputVar))
+  NFRsub <- subset(aggNFR, !is.na(inputVar))
+  FNFsub <- subset(aggFNF, !is.na(inputVar))
+  sublist <- list()
+  #Functional and needs repair
+  FRSubtab <-xtabs(~outcomes + FRsub[[inputVar]], data = FRsub)
+  sublist[1] <- assocstats(FRSubtab)[5]
+  #Not functional and needs repair
+  NFRSubtab <-xtabs(~outcomes + NFRsub[[inputVar]], data = NFRsub)
+  sublist[2] <- assocstats(NFRSubtab)[5]
+  #Functional and non functional
+  FNFSubtab <- xtabs(~outcomes + FNFsub[[inputVar]], data = FNFsub)
+  sublist[3] <-  assocstats(FNFSubtab)[5]
+  
+  print('Functional and Needs Repair')
+  print(sublist[1])
+  
+  print('Non Functional and Needs Repair')
+  print(sublist[2])
+  
+  print('Functional and Non Functional')
+  print(sublist[3])
+}
+```
+
+Then onto looking at the region and basin. 
+```{r fig.width = 15}
+catPlots(wells$region,'Region')
+catPlots(wells$basin, 'Basin')
+```
+
+Both of these seem to carry weight in determining the status of the well. It is difficult to get truly in depth about this sort of thing without having a more thorough understanding of Tanzanian politics and demographics. To put this information to better use I would want to look at population by region, associate the basins with each region, and understand the distance of each well from the basin. I'll leave all that out of the present study as I think I could easily overextend that analysis and I'd rather look at the more readily available data before getting bogged down in associating outside data with the given data. 
+
+But before we go, let's take a peak at the Cramer's V for each. 
+```{r}
+quickCramer('region')
+```
+This falls into our moderately significant category. 
+
+```{r}
+quickCramer('basin')
+```
+This does as well, but less so than region. I'll use both for the classifier. 
+
+That wraps up geography, we'll take a look at demographics next.
+
+## <a name = 'pop'></a> Population  
+[Back to contents](#contents)
+
+We'll make a frequency plot to look at the relationship between outcomes and population. I've created a new dataset, popsub, to exclude the null values and the handful of massive outliers that skewed the datatset.
+```{r}
+ggplot(data = subset(wells,population > 1 & population < 2000)) +
+  geom_freqpoly(aes(x = population,y = ..density..,
+                      color = outcomes), binwidth = 30)  +
+  scale_color_manual(values = c('green','yellow','red')) +
+  ylab('Normalized Count')
+```
+
+
+It strikes me that around the 200 population mark the func and non func trends suddenly become much closer to each other, indicating that as population increases, the wells are much more likely to be non functional. This is no surprise. Let's see what else we can find.
+
+Well, the means and medians of the functional and nonfunctional groups are right on top of each other. But the functional but needs repair group has a significantly higher median and mean. Looking back up at the graph this makes a lot of sense, the spikes in the lower regions of the repair plot are much more comparable in height to the higher population spikes than in the other two groups. Maybe there is some threshold of maintenance that a local community can support to avoid complete failure but still fall short of performance standards that might require a larger industrial organization to maintain.
+
+## <a name = 'water'></a>Water Analysis  
+[Back to contents](#contents)
+
+The type of water pumped through the well probably has a big effect on its condition. Let's look at a couple of the different factors that could affect it. We have variables to look at: Extraction Type Class, Water Quality, Quantity, Waterpoint Type, and Amount value for the waterhead (the only numerical variable). Let's breeze through the discrete variables and look at their bar plots and Cramer's V values
+```{r fig.width = 15}
+catPlots(wells$extr.type.class, 'Extraction Type')
+quickCramer('extr.type.class')
+```
+These Cramer's V values are quite useful, especially considering my plan to sort by functional wells first then by wells in disrepair. Motor pumped wells fail most frequently, supporting the "keep it simple" maxim.
+
+### Water Quality:
+```{r fig.width = 15}
+catPlots(wells$water.qual, 'Water Quality')
+quickCramer('water.qual')
+```
+These are only slightly correlated, but we'll keep them nonetheless.
+
+### Water Quantity:
+```{r fig.width = 15}
+catPlots(wells$quant, 'Water Quantity')
+quickCramer('quant')
+```
+Just like in extraction type, we get some very useful Cramer's Vs here. Obviously if a well is dry it's not going to be very useful. This could skew the results, we might need to look at this more carefully when we put it in practice.
+
+### Waterpoint Type:
+```{r fig.width = 15}
+catPlots(wells$wpt.type, 'Waterpoint Type')
+quickCramer('wpt.type')
+```
+Another useful set of values. I don't know enough about water pipes to shed light onto this, but as usual the unknown values skew the data quite a bit.
+
+### Amount at water head:
+```{r}
+ggplot(data = subset(wells, amount.tsh < 1000 & amount.tsh > 0)) +
+  geom_freqpoly(aes(x = amount.tsh, y = ..density.., color = outcomes)) +
+  scale_color_manual(values = c('green','yellow','red'))
+```
+
+
+## <a name = 'constrdate'></a>Construction Year  
+[Back to contents](#contents)
+
+It seems likely that the date a well was built is going to influence its status. Let's check it out with a frequency plot.
+```{r}
+constrsub <- subset(wells, constr.year > 0)
+ggplot(data = constrsub) +
+  geom_freqpoly(aes(x = constr.year, color = outcomes), bins = 20) +
+  scale_color_manual(values = c('green','yellow','red'))
+```
+
+Ok, but we know we have way more functional wells than not anyway, so let's normalize this.
+
+```{r}
+ggplot(data = constrsub) +
+  geom_freqpoly(aes(x = constr.year, y = ..density.., color = outcomes), bins = 20) +
+  scale_color_manual(values = c('green','yellow','red'))
+```
+
+It definitely looks like there's a strong correlation here, the earlier years are dominated by non functioning wells while more recently constructed wells are in better shape. A box plot and some statistics might be more informative.
+
+```{r}
+ggplot(aes(x = outcomes, y = constr.year),data = constrsub) +
+  geom_boxplot() +
+  coord_cartesian(ylim = c(1980,2010))
+
+by(constrsub$constr.year, constrsub$outcomes, summary)
+
+```
+
+
+This is a rich source of info for us. Clearly the year a well was made is going to have a huge influence on whether or not it is still functioning. How rich? 
+
+```{r}
+quickCramer('constr.year')
+```
+
+```{r}
+constrtab <- xtabs(~outcomes + constr.year, data = constrsub)
+assocstats(constrtab)
+```
+
+```{r}
+FRconstr <- subset(aggFR, constr.year > 0)
+NFRconstr <- subset(aggNFR, constr.year > 0)
+FNFconstr <- subset(aggFNF, constr.year > 0)
+#Functional and needs repair
+FRCtab <-xtabs(~outcomes + constr.year, data = FRconstr)
+assocstats(FRCtab)
+
+#Not functional and needs repair
+NFRCtab <-xtabs(~outcomes + constr.year, data = NFRconstr)
+assocstats(NFRCtab)
+
+#Functional and non functional
+FNFCtab <- xtabs(~outcomes + constr.year, data = FNFconstr)
+assocstats(FNFCtab)
+```
+
+Excellent, we can see that clearly the differences are statistically significant, but the only correlation that is close to strong enough to be worth considering is that between functional and non functional wells. With a Cramer's V of .319, we would do well to remember this when we try to predict the test dataset's results.
+
+## <a name = 'date'></a> Date Reported    
+[Back to contents](#contents)
+
+What about the dates that the report was sent in? There are no reports before 2011 so I've set the axis to start there.
+```{r}
+ggplot(data = subset(wells, !is.na(date.recorded))) +
+  geom_freqpoly(aes(x = date.recorded, y = ..density.., 
+                    color = outcomes), binwidth = 10) +
+  scale_x_date(date_labels  = '%b-%Y', limits = as.Date(c('2011-01-01',NA))) +
+  scale_color_manual(values = c('green','yellow','red')) 
+```
+
+This actually gives us some interesting metadata about the dataset. Its likely that the program used to report the information has become more popular in recent years, we can see evidence of that from the series of smaller spikes after 2013. It looks like these spikes followed a major push in early 2013 to collect data en masse. It would be informative to check for redundant entries and see if any of these smaller reports are from locals who hopped on board after the push.
+
+What if we associate the recorded date with the year the well was constructed?
+```{r}
+ggplot(data = subset(wells, !is.na(date.recorded) & constr.year > 0)) +
+  geom_jitter(aes(x = constr.year, y = date.recorded, color = outcomes)) +
+  scale_y_date(date_labels  = '%b-%Y', limits = as.Date(c('2011-01-01',NA))) +
+  scale_color_manual(values = c('green','yellow','red'))
+```
+
+
+## <a name = 'misc'></a> Miscellaneous Factors  
+[Back to contents](#contents)
+
+The remaining variables don't lend themselves to being treated as part of any particular group, so we'll just blow through them and look at a bar plot + Cramer's V for each of them. I'm including missing values as it will be important to have a way to classify missing entries in our test set. 
+
+### <a name = 'pubmeet'></a> Public Meeting  
+[Back to contents](#contents)
+
+Is the status of the well as a public meeting hub relevant?
+
+```{r}
+catPlots(wells$pubmeet, 'Public Meeting')
+quickCramer('pubmeet')
+```
+
+Very low Cramer's V, not relevant.
+
+### <a name = 'scheme.mgmt'></a>Scheme Management  
+[Back to contents](#contents)
+
+Is the manager relevant?
+
+```{r}
+catPlots(wells$scheme.mgmt, 'Scheme Manager')
+quickCramer('scheme.mgmt')
+```
+
+Very low Cramer's V, marginally relevant.
+
+### <a name = 'permit'></a>Permit
+[Back to contents](#contents)
+
+Does the well's permit status affect the outcome?
+
+```{r}
+catPlots(wells$permit, 'Permit')
+quickCramer('permit')
+```
+
+Not at all.
+
+### <a name = 'mgmt.group'></a> Management Groups
+[Back to contents](#contents)
+
+Is management group relevant?
+
+```{r}
+catPlots(wells$mgmt.group, 'Management Group')
+quickCramer('mgmt.group')
+```
+
+Not at all.
+
+### <a name = 'payment.type'></a> Payment Type
+[Back to contents](#contents)
+
+Is payment type relevant?
+```{r}
+catPlots(wells$payment.type, 'Payment Type')
+quickCramer('payment.type')
+```
+We finally get a bit of useful information out of this with significant Cramer's V for NotFunction-Repair and Function-NotFunction groups.
+
+# <a name = 'finalplots'></a> Final Plots  
+[Back to contents](#contents)
+
+Many of the plots were similar due to the categorical nature of the data, and it is difficult to point to any particular ones as being more useful than the others. Perhaps the most informative was the first, the density plot of wells by status over the map of Tanzania, which I've reproduced below. We see that there are no functional wells whatsoever in the interior or the south west border. Wells to the west that are not at 100% tend to be in disrepair but still operational, while wells in complete disrepair are spread relatively uniformly, with hotspots generally matching the functional wells.
+
+```{r}
+rasterbase +
+  stat_density2d(aes(x = longitude, y = latitude, fill = ..level..), 
+                  data = subset(wells, longitude > 10 & latitude < -1),
+                 geom = 'polygon') +
+  guides(fill = guide_legend(title = 'Density')) +
+  facet_wrap(~outcomes)
+```
+
+The year the well was constructed is clearly fundamental to determining its status, clearly visualized below. Wells constructed before 2000 tend to be in disrepair, and likely completely disfunctional, but wells made after 2000 tend to be functional and if not, they are more likely to be functional but need repair.
+
+```{r}
+ggplot(data = constrsub) +
+  geom_freqpoly(aes(x = constr.year, y = ..density.., color = outcomes), bins = 20) +
+  scale_color_manual(values = c('green','yellow','red'))
+```
+
+And finally the bar chart demonstrating well status dependence on region. I think this one could be the most interesting to me as it is the most ripe for doing some really exploratory analysis with the demographics of Tanzania if I can get my hands on a good dataset of demographic info. We saw earlier the heavy numerical dependence of status on region, if we could take this information and associate it with information on overall wealth, population,infrastructure, political condition, etc. we might be able to pull out some truly interesting and informative details!
+
+```{r fig.width = 15}
+catPlots(wells$region,'Region')
+```
+
+
+# <a name = 'reflection'></a> Reflections  
+[Back to contents](#contents)
+
+This is a rich dataset and there are a lot of influential variables that can help us determine the status of a well. The grand majority of variables were categorical which I think is both a blessing and a curse. On one hand, this lets us give clear and discrete weights to each level of the categorical factors which I think will be useful in designing classifiers. On the other hand, the data was more difficult to work with and create informative plots as numerical data lends itself to more intuitive visualization. Importantly, one of the few numerical variables, position, was very informative and showed us a very clear distribution of well status depending on its position relative to the borders of Tanzania.
+
+I normalized almost all the data to compensate for the different numbers of reported well outcomes, but it could be useful to have both normalized and non-normalized data on hand as certainly well predictions will be influenced by the prevalence of functional wells just as much as any other variable. Although perhaps just taking into account the distribution of the wells in the first place would work in a multinomial regression if all other variables stayed normalized. If I continue, which I do hope to, I would like to pull demographic data for Tanzania and do a sort of meta-normalization of population, politics, and water quality of each region as well as associating each region with a batch of coordinates.
+
+# <a name = 'sources'></a> Sources and Closing Remarks
+The data came from:  
+https://www.drivendata.org/competitions/7/
+
+Throughout this study I made extensive use of the following sources:  
+http://www.statmethods.net/stats/index.html  
+https://onlinecourses.science.psu.edu/stat200/node/71  
+http://datascience.stackexchange.com/questions/893/how-to-get-correlation-between-two-categorical-variable-and-a-categorical-variab  
+http://www.ats.ucla.edu/stat/mult_pkg/whatstat/default.htm  
+
+As well as the Udacity course on R.
+
+This was good fun and I look forward to merging what I learned here with machine learning! 
+
