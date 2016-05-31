@@ -1,28 +1,11 @@
-# Udacity-DanD-P0
-My progress through the Udacity Data Analyst Nanodegree
+# Titanic Data Visuzalization
 
-In this repository I'll be trying to maintain a relatively presentable copy of my Udacity DanD projects. If you're feeling extra 
-scrutinizing today then go ahead and ignore the earlier projects as I took massive aesthetic liberty to churn out hideous but functional
-projects quickly so I could get to the juicy learnin'.
+## Summary
+The sinking of the Titanic was a landmark disaster in Western history. Today it is remembered as a lesson in preventative safety measures, but the data of the passengers and how their backgrounds affected their survival chances is studied frequently as an exercise in data analysis and machine learning. By studying this graphic, we can see how the fare paid by the passenger, their age, and their sex played pivotal roles in their likelihood of survival.
 
-## P0 - Chopsticks  
-Introductory project, very straightforward basic stats on chopstick size preferences among students.     
-<b>Jupyter Notebook, Python</b>
+## Design
+I elected to use an area plot, faceted over survival status, displaying age in the X axis and fare paid in the Y axis for both women (blue) and men (red). This allows for the reader to see a large amount of contributing factors as they correlate with one another and not only yields insights into which sex was more likely to pay what fare, how age affected fare, and how the two come together to create the overall likelihood of survival.
 
-## P1 - Stroop   
-Looking at the Stroop effect in a small sample and doing some more basic stats.   
-<b>Jupyter Notebook, Python (numpy, pandas)</b>
+## Feedback
 
-## P2 - Titanic Survival Data  
-Taking the Titanic data set from Kaggle and using numpy and pandas. In the Kaggle comp you are supposed to look at stats as
-they relate to passenger survival, but for this exercise I didn't go terribly in depth with survival, preferring to look at other
-relationships like Class and Sex, fare age etc. as well as Survival.    
-<b>Jupyter Notebook, Python (numpy, pandas)</b>
-
-## P3 - Open Street Map Data Wrangle with MongoDB  
-Exported an XML document from Open Street Maps detailing the Hampton Roads area in Virginia. XML file size was over 1GB. Cleaned data, saved as JSON, uploaded to MongoDB and looked at a couple different statistics on the area. This one was a fav!    
-<b>Jupyter Notebook, Python (numpy, pandas, ElementTree), XML, JSON, MongoDB </b>
-
-## P4 - Data Mining the Tanzanian Water Table With R    
-Exploratory Data Analysis for the drivendata.org machine learning competition to predict failure of water wells in Tanzania to support the NPO Taarifa.    
-<b> R, R Markdown, Statistical Analysis, ggplot2 </b>
+## Resources
