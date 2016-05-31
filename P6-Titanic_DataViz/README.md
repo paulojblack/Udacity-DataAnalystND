@@ -9,3 +9,6 @@ I elected to use an area plot, faceted over survival status, displaying age in t
 ## Feedback
 
 ## Resources
+www.udacity.com  
+www.stackoverflow.com  
+www.http://dimplejs.org/examples_index.html
