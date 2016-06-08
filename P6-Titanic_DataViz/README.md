@@ -6,7 +6,11 @@ The sinking of the Titanic was a landmark disaster in Western history. Today it 
 ## Design
 I elected to use an area plot, faceted over survival status, displaying age in the X axis and fare paid in the Y axis for both women (blue) and men (red). This allows for the reader to see a large amount of contributing factors as they correlate with one another and not only yields insights into which sex was more likely to pay what fare, how age affected fare, and how the two come together to create the overall likelihood of survival.
 
-## Feedback
+## Feedback  
+1. Add age ticks to X axis... whoops  
+2. Larger legend and axis labels  
+3. Change Fare from thousands representation to dollars
+
 
 ## Resources
 www.udacity.com  
