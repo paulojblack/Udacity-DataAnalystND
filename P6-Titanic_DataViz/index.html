@@ -44,19 +44,26 @@
           //data = dimple.filterData(data, 'Sex', ['male', 'female'])
           var myChart = new dimple.chart(svg, data);
           var x = myChart.addCategoryAxis("x", ["Survived", "Age"]);
-          x.addOrderRule('Age', true);
-          myChart.addMeasureAxis("y", 'Fare');
+          x.addOrderRule('Age',true);
+          x.fontSize = '14px';
+
+          var y = myChart.addMeasureAxis("y", 'Fare');
+          y.fontSize = '14px';
+
           var s = myChart.addSeries(['Survived', 'Sex'], dimple.plot.area);
           s.lineWeight = 1;
           s.barGap = 0.05;
-          myChart.addLegend(150,20,100,300,'left');
+
+          var l = myChart.addLegend(150,20,100,300,'left');
+          l.fontSize = '14px';
+
           myChart.draw();
           x.titleShape.text('Survival Status');
         };
       </script>
   </head>
 <body>
-  <h1>Age, Sex, and Money in the Sinking of the Titanic</h1>
+  <h1>Money, Sex and Old Age in the Sinking of the Titanic</h1>
   <div>The sinking of the Titanic was a landmark disaster in Western history. Today it is remembered as a lesson in preventative safety measures, but the data of the passengers and how their backgrounds affected their survival chances is studied frequently as an exercise in data analysis and machine learning. By studying this graphic, we can see how the fare paid by the passenger, their age, and their sex played pivotal roles in their likelihood of survival.
   </div>
   <script type="text/javascript">
